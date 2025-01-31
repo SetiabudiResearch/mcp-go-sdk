@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/SetiabudiResearch/mcp-go-sdk/pkg/mcp/protocol"
@@ -37,6 +38,7 @@ func (s *Session) handleCallTool(req *protocol.JSONRPCRequest) (*protocol.JSONRP
 	if err := json.Unmarshal(req.Params.(json.RawMessage), &params); err != nil {
 		return nil, fmt.Errorf("invalid tool call params: %w", err)
 	}
+	log.Printf("Received tool call request: %+v", params)
 
 	s.server.mu.RLock()
 	tool, exists := s.server.tools[params.Name]
@@ -55,15 +57,22 @@ func (s *Session) handleCallTool(req *protocol.JSONRPCRequest) (*protocol.JSONRP
 
 		// Get argument value from params
 		argName := fmt.Sprintf("arg%d", i)
-		if argValue, ok := params.Arguments[argName]; ok {
-			if err := json.Unmarshal(argValue.(json.RawMessage), &paramValue); err != nil {
-				return nil, fmt.Errorf("invalid argument %d: %w", i, err)
+		log.Printf("argName: %s", argName)
+		if params.Arguments != nil {
+			if argValue, ok := params.Arguments[argName]; ok {
+				// Directly assign the argument value
+				paramValue = argValue
+			} else {
+				return nil, fmt.Errorf("missing argument: %s", argName)
 			}
+		} else {
+			return nil, fmt.Errorf("arguments map is nil")
 		}
-		args[i] = reflect.ValueOf(paramValue).Elem()
+		args[i] = reflect.ValueOf(paramValue)
 	}
 
 	// Call the handler
+	log.Printf("arguments: %+v", args)
 	results := reflect.ValueOf(tool.Handler).Call(args)
 
 	// Process results
@@ -76,10 +85,10 @@ func (s *Session) handleCallTool(req *protocol.JSONRPCRequest) (*protocol.JSONRP
 			content = []interface{}{protocol.NewTextContent(err.Error())}
 			isError = true
 		} else {
-			content = []interface{}{results[0].Interface()}
+			content = []interface{}{results[0].String()}
 		}
 	} else { // Function returns single value
-		content = []interface{}{results[0].Interface()}
+		content = []interface{}{results[0].String()}
 	}
 
 	result := protocol.CallToolResult{
