@@ -1,6 +1,6 @@
 # MCP Go SDK
 
-This SDK provides a Go implementation of the Machine Control Protocol (MCP), enabling bidirectional communication between clients and servers for tool execution, resource access, and prompt handling.
+This SDK provides a Go implementation of the Model Context Protocol (MCP), enabling bidirectional communication between clients and servers for tool execution, resource access, and prompt handling.
 
 ## Features
 
